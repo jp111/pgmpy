@@ -1,10 +1,20 @@
 #!/usr/bin/env python
 import unittest
 from io import StringIO
-from pgmpy.readwrite import PomdpXReader
+try:
+    from lxml import etree
+except ImportError:
+    try:
+        import xml.etree.cElementTree as etree
+    except ImportError:
+        try:
+            import xml.etree.ElementTree as etree
+        except ImportError:
+            print("Failed to import ElementTree from any known place")
+from pgmpy.readwrite import PomdpXReader, PomdpXWriter
 
 
-class TestPomdpXReaderString(unittest.TestCase):
+class TestPomdpXReader(unittest.TestCase):
     def setUp(self):
         string = """<pomdpx version="1.0" id="rockSample"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -777,3 +787,125 @@ class TestPomdpXReaderString(unittest.TestCase):
     def tearDown(self):
         del self.reader_file
         del self.reader_string
+
+class TestPomdpXWriter(unittest.TestCase):
+    def setUp(self):
+        self.model_data = {'discription': '',
+                           'discount': '0.95',
+                           'variables': {
+                               'StateVar':
+                        [{'vnamePrev': 'rover_0',
+                         'vnameCurr': 'rover_1',
+                         'ValueEnum': ['s0', 's1', 's2'],
+                         'fullyObs': True},
+                        {'vnamePrev': 'rock_0',
+                         'vnameCurr': 'rock_1',
+                         'fullyObs': False,
+                         'ValueEnum': ['good', 'bad']}],
+                               'ObsVar': [{'vname': 'obs_sensor',
+                                           'ValueEnum': ['ogood', 'obad']}],
+                               'RewardVar': [{'vname': 'reward_rover'}],
+                               'ActionVar': [{'vname': 'action_rover',
+                                                       'ValueEnum': ['amw', 'ame',
+                                                                     'ac', 'as']}]},
+                            'initial_state_belief': [{'Var': 'rover_0',
+                            'Parent': ['null'],
+                            'Type': 'TBL',
+                            'Parameter': [{'Instance': ['-'],
+                                           'ProbTable': ['0.0', '1.0', '0.0']}]
+                            },
+                           {'Var': 'rock_0',
+                            'Parent': ['null'],
+                            'Type': 'TBL',
+                            'Parameter': [{'Instance': ['-'],
+                                           'ProbTable': ['uniform']}]
+                            }],
+                           'state_transition_function': [{'Var': 'rover_1',
+              'Parent': ['action_rover', 'rover_0'],
+              'Type': 'TBL',
+              'Parameter': [{'Instance': ['amw', 's0', 's2'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['amw', 's1', 's0'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['ame', 's0', 's1'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['ame', 's1', 's2'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['ac', 's0', 's0'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['ac', 's1', 's1'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['as', 's0', 's0'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['as', 's1', 's2'],
+                             'ProbTable': ['1.0']},
+                            {'Instance': ['*', 's2', 's2'],
+                             'ProbTable': ['1.0']}]},
+             {'Var': 'rock_1',
+              'Parent': ['action_rover', 'rover_0', 'rock_0'],
+              'Type': 'TBL',
+              'Parameter': [{'Instance': ['amw', '*', '-', '-'],
+                             'ProbTable': ['1.0', '0.0', '0.0', '1.0']},
+                            {'Instance': ['ame', '*', '-', '-'],
+                             'ProbTable': ['identity']},
+                            {'Instance': ['ac', '*', '-', '-'],
+                             'ProbTable': ['identity']},
+                            {'Instance': ['as', '*', '-', '-'],
+                             'ProbTable': ['identity']},
+                            {'Instance': ['as', 's0', '*', '-'],
+                             'ProbTable': ['0.0', '1.0']},
+                            ]}],
+                           'obs_function': [{'Var': 'obs_sensor',
+              'Parent': ['action_rover', 'rover_1', 'rock_1'],
+              'Type': 'TBL',
+              'Parameter': [{'Instance': ['amw', '*', '*', '-'],
+                             'ProbTable': ['1.0', '0.0']},
+                            {'Instance': ['ame', '*', '*', '-'],
+                             'ProbTable': ['1.0', '0.0']},
+                            {'Instance': ['as', '*', '*', '-'],
+                             'ProbTable': ['1.0', '0.0']},
+                            {'Instance': ['ac', 's0', '-', '-'],
+                             'ProbTable': ['1.0', '0.0', '0.0', '1.0']},
+                            {'Instance': ['ac', 's1', '-', '-'],
+                             'ProbTable': ['0.8', '0.2', '0.2', '0.8']},
+                            {'Instance': ['ac', 's2', '*', '-'],
+                             'ProbTable': ['1.0', '0.0']}]}],
+                           'reward_function': [{'Var': 'reward_rover',
+              'Parent': ['action_rover', 'rover_0', 'rock_0'],
+              'Type': 'TBL',
+              'Parameter': [{'Instance': ['ame', 's1', '*'],
+                             'ValueTable': ['10']},
+                            {'Instance': ['amw', 's0', '*'],
+                             'ValueTable': ['-100']},
+                            {'Instance': ['as', 's1', '*'],
+                             'ValueTable': ['-100']},
+                            {'Instance': ['as', 's0', 'good'],
+                             'ValueTable': ['10']},
+                            {'Instance': ['as', 's0', 'bad'],
+                             'ValueTable': ['-10']}]}]}
+        self.writer = PomdpXWriter(model_data=self.model_data)
+
+    def test_variables(self):
+        expected_variables = etree.XML("""<Variable>
+  <StateVar fullyObs="true" vnameCurr="rover_1" vnamePrev="rover_0">
+    <NumValues>3</NumValues>
+  </StateVar>
+  <StateVar fullyObs="false" vnameCurr="rock_1" vnamePrev="rock_0">
+    <ValueEnum>good bad</ValueEnum>
+  </StateVar>
+  <ObsVar vname="obs_sensor">
+    <ValueEnum>ogood obad</ValueEnum>
+  </ObsVar>
+  <ActionVar vname="action_rover">
+    <ValueEnum>amw ame ac as</ValueEnum>
+  </ActionVar>
+  <RewardVar vname="reward_rover" />
+</Variable>""")
+        self.maxDiff=None
+        print(self.writer.get_variables()[:-1])
+        print()
+        print()
+        print()
+        print(etree.tostring(expected_variables))
+        self.assertEqual(str(self.writer.get_variables()[:-1]),
+                         str(etree.tostring(expected_variables)))

@@ -44,6 +44,29 @@ class PomdpXReader:
             self.network = etree.fromstring(string)
         else:
             raise ValueError("Must specify either path or string")
+        self.model = defaultdict(list)
+
+        self.create_pomdpXnetwork()
+
+    def create_pomdpXnetwork(self):
+        """
+        Returns the network depending on the type of PomdpX passed to the
+        PomdpXReader Class
+        """
+        self.model['Description'] = self.get_description()
+        self.model['Discount'] = self.get_discount()
+        self.model['variables'] = self.get_variables()
+        self.add_functions()
+
+    def add_functions(self):
+        """
+        Add the four type of function definitions in the model
+        """
+        self.model['initial_state_belief'] = self.get_initial_beliefs()
+        self.model['state_transition_function'] = \
+            self.get_state_transition_function()
+        self.model['obs_function'] = self.get_obs_function()
+        self.model['reward_function'] = self.get_reward_function()
 
     def get_description(self):
         """
@@ -56,11 +79,6 @@ class PomdpXReader:
         Rock is at 0, Rover’s initial position is at 1.
         Exit is at 2.'
         --------
-        >>> reader = PomdpXReader('Test_PomdpX.xml')
-        >>> reader.get_description()
-        'RockSample problem for map size 1 x 3.
-         Rock is at 0, Rover’s initial position is at 1.
-         Exit is at 2.'
         """
         return self.network.find('Description').text
 
@@ -365,3 +383,83 @@ class PomdpXReader:
             dag['id'] = SubDAGTemplate.get('id')
         dag[root] = get_param(node)
         return dag
+
+
+class PomdpXWriter():
+    """
+    Class for writing models in PomdpX
+    """
+    def __init__(self, model_data, encoding='utf-8', prettyprint=True):
+        """
+        Initialise a PomdpXWriter Object
+
+        Parameters
+        --------
+        model: A Bayesian of Markov Model
+            The model to write
+        encoding: String(optional)
+            Encoding for text data
+        prettyprint: Bool(optional)
+            Indentation in output XML if true
+        """
+        self.model = model_data
+
+        self.encoding = encoding
+        self.prettyprint = prettyprint
+
+        self.xml = etree.Element("pomdpx", attrib={'version': '1.0'})
+        self.description = etree.SubElement(self.xml, 'Description')
+        self.discount = etree.SubElement(self.xml, 'Discount')
+        self.variable = etree.SubElement(self.xml, 'Variable')
+        self.initial_belief = etree.SubElement(self.xml, 'InitialStateBelief')
+        self.transition_function = etree.SubElement(self.xml, 'StateTransitionFunction')
+        self.observation_function = etree.SubElement(self.xml, 'ObsFunction')
+        self.reward_function = etree.SubElement(self.xml, 'RewardFunction')
+
+        #TODO discription and the discount tags
+
+    def __str__(self, xml):
+        """
+        Return the XML as string.
+        """
+        return etree.tostring(xml, encoding=self.encoding,
+                              pretty_print=self.prettyprint)
+
+    def _add_value_enum(self, var, tag):
+        if var['ValueEnum'][0] == 's0':
+                numvalues_tag = etree.SubElement(tag, 'NumValues')
+                numvalues_tag.text = str(int(var['ValueEnum'][-1][-1]) + 1)
+        else:
+            valueenum_tag = etree.SubElement(tag, 'ValueEnum')
+            valueenum_tag.text = ''
+            for value in var['ValueEnum']:
+                valueenum_tag.text += value + ' '
+            valueenum_tag.text = valueenum_tag.text[:-1]
+
+    def get_variables(self):
+        """
+        Add variables to PomdpX
+        """
+        state_variables = self.model['variables']['StateVar']
+        for var in state_variables:
+            state_var_tag = etree.SubElement(self.variable, 'StateVar', attrib={'vnamePrev': var['vnamePrev'],
+                                                                                'vnameCurr': var['vnameCurr'],
+                                                                                'fullyObs': 'true' if var['fullyObs']
+                                                                                else 'false'})
+            self._add_value_enum(var, state_var_tag)
+
+        obs_variables = self.model['variables']['ObsVar']
+        for var in obs_variables:
+            obs_var_tag = etree.SubElement(self.variable, 'ObsVar', attrib={'vname': var['vname']})
+            self._add_value_enum(var, obs_var_tag)
+
+        action_variables = self.model['variables']['ActionVar']
+        for var in action_variables:
+            action_var_tag = etree.SubElement(self.variable, 'ActionVar', attrib={'vname': var['vname']})
+            self._add_value_enum(var, action_var_tag)
+
+        reward_var = self.model['variables']['RewardVar']
+        for var in reward_var:
+            etree.SubElement(self.variable, 'RewardVar', attrib={'vname': var['vname']})
+
+        return self.__str__(self.variable)
