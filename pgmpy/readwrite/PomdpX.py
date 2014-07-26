@@ -470,12 +470,6 @@ class PomdpXWriter():
 
         return self.__str__(self.variable)[:-1]
 
-    def add_parameter_dd(self, parameter_dict, parent_number, condition):
-        if parameter_dict is defaultdict:
-
-        else:
-            pass
-
     def add_conditions(self, condition, condprob):
         var_tag = etree.SubElement(condprob, 'Var')
         var_tag.text = condition['Var']

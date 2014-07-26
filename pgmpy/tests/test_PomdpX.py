@@ -1085,37 +1085,3 @@ class TestPomdpXWriter(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(self.writer.add_reward_function(),
                          etree.tostring(expected_reward_xml))
-
-    def test_initial_state_belief_dd(self):
-        self.model_data = {'initial_state_belief': [{
-            'Var': 'rover_0',
-            'Parent': ['null'],
-            'Type': 'DD',
-            'Parameter': {'rover_0': {'s0': '0.0',
-                                      's1': {'type': 'uniform',
-                                             'var': 'rock_0'},
-                                      's2': '0.0'}}}]}
-        expected_xml = etree.XML("""
-        <InitialStateBelief>
-        <CondProb>
-            <Var>rover_0</Var>
-            <Parent>null</Parent>
-            <Parameter type="DD">
-                <DAG>
-                    <Node var="rover_0">
-                        <Edge val="s0">
-                            <Terminal>0.0</Terminal>
-                        </Edge>
-                        <Edge val="s1">
-                            <SubDAG type="uniform" var="rock_0"/>
-                        </Edge>
-                        <Edge val="s2">
-                            <Terminal>0.0</Terminal>
-                        </Edge>
-                    </Node>
-                </DAG>
-            </Parameter>
-        </CondProb>
-    </InitialStateBelief>""")
-        self.assertEqual(self.writer.add_state_transition_function(),
-                         etree.tostring(expected_xml))
