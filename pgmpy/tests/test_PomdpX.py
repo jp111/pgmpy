@@ -1085,3 +1085,365 @@ class TestPomdpXWriter(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(self.writer.add_reward_function(),
                          etree.tostring(expected_reward_xml))
+
+    def test_initial_state_belief_dd(self):
+        self.model_data = {'initial_state_belief': [{
+            'Var': 'rover_0',
+            'Parent': ['null'],
+            'Type': 'DD',
+            'Parameter': {'rover_0': {'s0': '0.0',
+                                      's1': {'type': 'uniform',
+                                             'var': 'rock_0'},
+                                      's2': '0.0'}}}]}
+        self.writer = PomdpXWriter(model_data=self.model_data)
+        expected_xml = etree.XML("""
+<InitialStateBelief>
+  <CondProb>
+    <Var>rover_0</Var>
+    <Parent>null</Parent>
+    <Parameter type="DD">
+      <DAG>
+        <Node var="rover_0">
+          <Edge val="s0">
+            <Terminal>0.0</Terminal>
+          </Edge>
+          <Edge val="s1">
+            <SubDAG type="uniform" var="rock_0"/>
+          </Edge>
+          <Edge val="s2">
+            <Terminal>0.0</Terminal>
+          </Edge>
+        </Node>
+      </DAG>
+    </Parameter>
+  </CondProb>
+</InitialStateBelief>""")
+        self.maxDiff = None
+        self.assertEqual(self.writer.add_initial_belief(),
+                         etree.tostring(expected_xml))
+
+    def test_state_transition_function_dd(self):
+        self.model_data = {'state_transition_function':
+            [{'Var': 'rover_1',
+              'Parent': ['action_rover', 'rover_0'],
+              'Type': 'DD',
+              'Parameter': {'action_rover': {'amw': {'rover_0': {'s0': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's2'},
+                                                                 's1': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's0'},
+                                                                 's2': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's2'}}},
+                                             'ame': {'rover_0': {'s0': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's1'},
+                                                                 's1': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's2'},
+                                                                 's2': {'type': 'deterministic',
+                                                                        'var': 'rover_1',
+                                                                        'val': 's2'},
+                                                                 }},
+                                             'ac': {'type': 'persistent',
+                                                    'var': 'rover_1'},
+                                             'as': {'rover_0': {'s0': {'type': 'deterministic',
+                                                                       'var': 'rover_1',
+                                                                       'val': 's0'},
+                                                                's1': {'type': 'deterministic',
+                                                                       'var': 'rover_1',
+                                                                       'val': 's2'},
+                                                                's2': {'type': 'deterministic',
+                                                                       'var': 'rover_1',
+                                                                       'val': 's2'}}}}}},
+             {'Var': 'rock_1',
+              'Parent': ['action_rover', 'rover_0', 'rock_0'],
+              'Type': 'DD',
+              'Parameter': {'action_rover': {'amw': {'type': 'persistent',
+                                                     'var': 'rock_1'},
+                                             'ame': {'type': 'persistent',
+                                                     'var': 'rock_1'},
+                                             'ac': {'type': 'persistent',
+                                                    'var': 'rock_1'},
+                                             'as': {'rover_0': {'s0': {'type': 'deterministic',
+                                                                       'var': 'rock_1',
+                                                                       'val': 'bad'},
+                                                                's1': {'type': 'persistent',
+                                                                       'var': 'rock_1'},
+                                                                's2': {'type': 'persistent',
+                                                                       'var': 'rock_1'}}}}}}]}
+        self.writer = PomdpXWriter(model_data=self.model_data)
+        expected_xml = etree.XML("""
+<StateTransitionFunction>
+  <CondProb>
+    <Var>rover_1</Var>
+    <Parent>action_rover rover_0</Parent>
+    <Parameter type="DD">
+      <DAG>
+        <Node var="action_rover">
+          <Edge val="ac">
+            <SubDAG type="persistent" var="rover_1"/>
+          </Edge>
+          <Edge val="ame">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <SubDAG type="deterministic" val="s1" var="rover_1"/>
+              </Edge>
+              <Edge val="s1">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+              <Edge val="s2">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="amw">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+              <Edge val="s1">
+                <SubDAG type="deterministic" val="s0" var="rover_1"/>
+              </Edge>
+              <Edge val="s2">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="as">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <SubDAG type="deterministic" val="s0" var="rover_1"/>
+              </Edge>
+              <Edge val="s1">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+              <Edge val="s2">
+                <SubDAG type="deterministic" val="s2" var="rover_1"/>
+              </Edge>
+            </Node>
+          </Edge>
+        </Node>
+      </DAG>
+    </Parameter>
+  </CondProb>
+  <CondProb>
+    <Var>rock_1</Var>
+    <Parent>action_rover rover_0 rock_0</Parent>
+    <Parameter type="DD">
+      <DAG>
+        <Node var="action_rover">
+          <Edge val="ac">
+            <SubDAG type="persistent" var="rock_1"/>
+          </Edge>
+          <Edge val="ame">
+            <SubDAG type="persistent" var="rock_1"/>
+          </Edge>
+          <Edge val="amw">
+            <SubDAG type="persistent" var="rock_1"/>
+          </Edge>
+          <Edge val="as">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <SubDAG type="deterministic" val="bad" var="rock_1"/>
+              </Edge>
+              <Edge val="s1">
+                <SubDAG type="persistent" var="rock_1"/>
+              </Edge>
+              <Edge val="s2">
+                <SubDAG type="persistent" var="rock_1"/>
+              </Edge>
+            </Node>
+          </Edge>
+        </Node>
+      </DAG>
+    </Parameter>
+  </CondProb>
+</StateTransitionFunction>""")
+        self.maxDiff = None
+        self.assertEqual(str(self.writer.add_state_transition_function()),
+                         str(etree.tostring(expected_xml)))
+
+    def test_obs_function_dd(self):
+        self.model_data = {'obs_function':
+            [{'Var': 'obs_sensor',
+              'Parent': ['action_rover', 'rover_1', 'rock_1'],
+              'Type': 'DD',
+              'Parameter': {'action_rover': {'amw': {'type': 'deterministic',
+                                                     'var': 'obs_sensor',
+                                                     'val': 'ogood'},
+                                             'ame': {'type': 'deterministic',
+                                                     'var': 'obs_sensor',
+                                                     'val': 'ogood'},
+                                             'ac': {'rover_1': {'s0': {'rock_1': {'good': {'type': 'deterministic',
+                                                                                           'var': 'obs_sensor',
+                                                                                           'val': 'ogood'},
+                                                                                  'bad': {'type': 'deterministic',
+                                                                                          'var': 'obs_sensor',
+                                                                                          'val': 'obad'}}},
+                                                                's1': {'type': 'template',
+                                                                       'idref': 'obs_rock'},
+                                                                's2': {'type': 'template',
+                                                                       'idref': 'obs_rock'}}},
+                                             'as': {'type': 'deterministic',
+                                                    'var': 'obs_sensor',
+                                                    'val': 'ogood'}},
+                            'SubDAGTemplate': {'rock_1': {'good': {'obs_sensor': {'ogood': '0.8',
+                                                                                  'obad': '0.2'}},
+                                                          'bad': {'obs_sensor': {'ogood': '0.2',
+                                                                                 'obad': '0.8'}}}},
+                            'id': 'obs_rock'}}]}
+        self.writer = PomdpXWriter(model_data=self.model_data)
+        expected_xml = etree.XML("""
+<ObsFunction>
+  <CondProb>
+    <Var>obs_sensor</Var>
+    <Parent>action_rover rover_1 rock_1</Parent>
+    <Parameter type="DD">
+      <DAG>
+        <Node var="action_rover">
+          <Edge val="ac">
+            <Node var="rover_1">
+              <Edge val="s0">
+                <Node var="rock_1">
+                  <Edge val="bad">
+                    <SubDAG type="deterministic" val="obad" var="obs_sensor" />
+                  </Edge>
+                  <Edge val="good">
+                    <SubDAG type="deterministic" val="ogood" var="obs_sensor"/>
+                  </Edge>
+                </Node>
+              </Edge>
+              <Edge val="s1">
+                <SubDAG idref="obs_rock" type="template"/>
+              </Edge>
+              <Edge val="s2">
+                <SubDAG idref="obs_rock" type="template"/>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="ame">
+            <SubDAG type="deterministic" val="ogood" var="obs_sensor"/>
+          </Edge>
+          <Edge val="amw">
+            <SubDAG type="deterministic" val="ogood" var="obs_sensor" />
+          </Edge>
+          <Edge val="as">
+            <SubDAG type="deterministic" val="ogood" var="obs_sensor"/>
+          </Edge>
+        </Node>
+      </DAG>
+      <SubDAGTemplate id="obs_rock">
+        <Node var="rock_1">
+          <Edge val="bad">
+            <Node var="obs_sensor">
+              <Edge val="obad">
+                <Terminal>0.8</Terminal>
+              </Edge>
+              <Edge val="ogood">
+                <Terminal>0.2</Terminal>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="good">
+            <Node var="obs_sensor">
+              <Edge val="obad">
+                <Terminal>0.2</Terminal>
+              </Edge>
+              <Edge val="ogood">
+                <Terminal>0.8</Terminal>
+              </Edge>
+            </Node>
+          </Edge>
+        </Node>
+      </SubDAGTemplate>
+    </Parameter>
+  </CondProb>
+</ObsFunction>""")
+        self.maxDiff = None
+        self.assertEqual(str(self.writer.add_obs_function()),
+                         str(etree.tostring(expected_xml)))
+
+    def test_reward_function_dd(self):
+        self.model_data = {'reward_function':
+            [{'Var': 'reward_rover',
+              'Parent': ['action_rover', 'rover_0', 'rock_0'],
+              'Type': 'DD',
+              'Parameter': {'action_rover': {'amw': {'rover_0': {'s0': '-100.0',
+                                                                 's1': '0.0',
+                                                                 's2': '0.0'}},
+                                             'ame': {'rover_0': {'s0': '0.0',
+                                                                 's1': '10.0',
+                                                                 's2': '0.0'}},
+                                             'ac': '0.0',
+                                             'as': {'rover_0': {'s0': {'rock_0': {'good': '10',
+                                                                                  'bad': '-10'}},
+                                                                's1': '-100',
+                                                                's2': '-100'}}}}}]}
+        self.writer = PomdpXWriter(model_data=self.model_data)
+        expected_xml = etree.XML("""
+<RewardFunction>
+  <Func>
+    <Var>reward_rover</Var>
+    <Parent>action_rover rover_0 rock_0</Parent>
+    <Parameter type="DD">
+      <DAG>
+        <Node var="action_rover">
+          <Edge val="ac">
+            <Terminal>0.0</Terminal>
+          </Edge>
+          <Edge val="ame">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <Terminal>0.0</Terminal>
+              </Edge>
+              <Edge val="s1">
+                <Terminal>10.0</Terminal>
+              </Edge>
+              <Edge val="s2">
+                <Terminal>0.0</Terminal>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="amw">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <Terminal>-100.0</Terminal>
+              </Edge>
+              <Edge val="s1">
+                <Terminal>0.0</Terminal>
+              </Edge>
+              <Edge val="s2">
+                <Terminal>0.0</Terminal>
+              </Edge>
+            </Node>
+          </Edge>
+          <Edge val="as">
+            <Node var="rover_0">
+              <Edge val="s0">
+                <Node var="rock_0">
+                  <Edge val="bad">
+                    <Terminal>-10</Terminal>
+                  </Edge>
+                  <Edge val="good">
+                    <Terminal>10</Terminal>
+                  </Edge>
+                </Node>
+              </Edge>
+              <Edge val="s1">
+                <Terminal>-100</Terminal>
+              </Edge>
+              <Edge val="s2">
+                <Terminal>-100</Terminal>
+              </Edge>
+            </Node>
+          </Edge>
+        </Node>
+      </DAG>
+    </Parameter>
+  </Func>
+</RewardFunction>""")
+        self.maxDiff = None
+        self.assertEqual(str(self.writer.add_reward_function()),
+                         str(etree.tostring(expected_xml)))

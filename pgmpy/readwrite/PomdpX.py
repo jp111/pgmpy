@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 from collections import defaultdict
+try:
+    from collections import OrderedDict
+except ImportError:
+    OrderedDict = dict
 
 try:
     from lxml import etree
@@ -470,7 +474,40 @@ class PomdpXWriter():
 
         return self.__str__(self.variable)[:-1]
 
+    def add_parameter_dd(self, dag_tag, node_dict):
+        """
+        helper function for adding parameters in condition
+        :param dag_tag: the DAG tag is contained in this element tree subelement
+        :param node_dict: the decision diagram dictionary
+        :return: None
+        """
+        if isinstance(node_dict, defaultdict) or isinstance(node_dict, dict):
+            node_tag = etree.SubElement(dag_tag, 'Node', attrib={'var': next(iter(node_dict.keys()))})
+            edge_dict = next(iter(node_dict.values()))
+            for edge in sorted(edge_dict.keys(), key=tuple):
+                edge_tag = etree.SubElement(node_tag, 'Edge', attrib={'val': edge})
+                value = edge_dict.get(edge)
+                if isinstance(value, str):
+                    terminal_tag = etree.SubElement(edge_tag, 'Terminal')
+                    terminal_tag.text = value
+                elif 'type' in value:
+                    if 'val' in value:
+                        etree.SubElement(edge_tag, 'SubDAG',
+                                         attrib={'type': value['type'], 'var': value['var'], 'val': value['val']})
+                    elif 'idref' in value:
+                        etree.SubElement(edge_tag, 'SubDAG', attrib={'type': value['type'], 'idref': value['idref']})
+                    else:
+                        etree.SubElement(edge_tag, 'SubDAG', attrib={'type': value['type'], 'var': value['var']})
+                else:
+                    self.add_parameter_dd(edge_tag, value)
+
     def add_conditions(self, condition, condprob):
+        """
+        helper function for adding probability conditions for model
+        :param condition: contains and element of conditions list
+        :param condprob: the tag to which condition is added
+        :return: None
+        """
         var_tag = etree.SubElement(condprob, 'Var')
         var_tag.text = condition['Var']
         parent_tag = etree.SubElement(condprob, 'Parent')
@@ -478,12 +515,22 @@ class PomdpXWriter():
         for parent in condition['Parent']:
             parent_tag.text += parent + ' '
         parent_tag.text = parent_tag.text[:-1]
-        parameter_tag = etree.SubElement(condprob, 'Parameter', attrib={'type': 'TBL' if condition['Type'] is not None
-                                                                                else condition['Type']})
+        parameter_tag = etree.SubElement(condprob, 'Parameter', attrib={'type': condition['Type']
+                                                                        if condition['Type'] is not None
+                                                                        else 'TBL'})
         if condition['Type'] == 'DD':
             dag_tag = etree.SubElement(parameter_tag, 'DAG')
-            node_tag = etree.SubElement(dag_tag, 'node', attrib=condition['Parent'][0])
-            self.add_parameter_dd(node_tag, condition['Parameter'], 0, condition)
+            #node_tag = etree.SubElement(dag_tag, 'node', attrib=condition['Parent'][0])
+            #self.add_parameter_dd(node_tag, condition['Parameter'], 0, condition)
+            parameter_dict = condition['Parameter']
+            if 'SubDAGTemplate' in parameter_dict:
+                subdag_tag = etree.SubElement(parameter_tag, 'SubDAGTemplate', attrib={'id': parameter_dict['id']})
+                self.add_parameter_dd(subdag_tag, parameter_dict['SubDAGTemplate'])
+                del parameter_dict['SubDAGTemplate']
+                del parameter_dict['id']
+                self.add_parameter_dd(dag_tag, parameter_dict)
+            else:
+                self.add_parameter_dd(dag_tag, parameter_dict)
         else:
             for parameter in condition['Parameter']:
                 entry = etree.SubElement(parameter_tag, 'Entry')
